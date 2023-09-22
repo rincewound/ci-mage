@@ -12,7 +12,7 @@ approach, while ubiquituous, has several disadvantages:
 Enter CI Mage:
 * Use C# to declare your build pipelines, with the full expressiveness of a
 statically typed language.
-* Target multiple CI runners, such as GitHub, GitLab, Azure DevOps
+* Target multiple CI runners, such as GitHub, GitLab, Azure DevOps and Local
 * Have multiple environments to target different instances of the same runner type
 
 
@@ -169,9 +169,10 @@ Most tools will expose a set of global variables containing informations on the
 build. Further we can usually define variables ourselves.
 
 Existing Globals
-CommitId:   Contains the commit ID  that is being built
-UserId:     Contains an applicable form of user id of the user that triggered the build
-AgentName:  Contains the name of the agent on which we are running
+
+* CommitId:   Contains the commit ID  that is being built
+* UserId:     Contains an applicable form of user id of the user that triggered the build
+* AgentName:  Contains the name of the agent on which we are running
 
 To use a variable add it in braces into any output value. When the script is rendered, 
 the variable occurences will be used correctly. E.g.:
