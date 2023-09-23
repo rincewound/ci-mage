@@ -1,92 +1,118 @@
-using System.IO;
-
-namespace gitlab 
+namespace gitlab
 {
-class Builder : IBuilder
-{
-    
-    StringWriter writer = new System.IO.StringWriter();
-
-    public IJob job(string JobName, jobfunc func)
+    class Builder : IBuilder
     {
-        return new Job(writer, JobName, func);
-    }
 
-    public override string ToString()
-    {
-        return writer.ToString();
-    }
-    }
+        StringWriter writer = new StringWriter();
 
-class Job : IJob
-{
-    TextWriter writer;
-    List<String> stageList = new List<string>();
+        public TargetType Target => TargetType.Gitlab;
 
-    public Job(TextWriter tw, string JobName, jobfunc f)
-    { 
-        writer = tw;
-        
-        StringWriter localWriter = new StringWriter();
-        var ctx = new Context(this, localWriter);
-        f(ctx);
-        tw.WriteLine($"stages:");
-        foreach(var s in stageList)
+        public IJob job(string JobName, jobFunc func)
         {
-            tw.WriteLine($" -{s}");
+            return new Job(writer, JobName, func);
         }
 
-        tw.Write(localWriter.ToString());
+        public override string ToString()
+        {
+            return writer.ToString();
+        }
     }
 
-    public void addStage(string StageName)
-    {
-        stageList.Add(StageName);
-    }
-
-    public IJob andThen(jobfunc f)
-    {
-        var ctx = new Context(this, writer);
-        f(ctx);
-        return this;
-    }
-}
-
-    class Context : IContext
+    class Job : IJob
     {
         TextWriter writer;
-        Job origin; 
+        List<string> steps = new List<string>();
 
-        public Context(Job j, TextWriter writer)
+        public Job(TextWriter tw, string JobName, jobFunc f)
+        {
+            writer = tw;
+
+            StringWriter localWriter = new StringWriter();
+            var ctx = new JobContext(this, localWriter);
+            f(ctx);
+            tw.WriteLine($"stages:");
+            foreach (var s in steps)
+            {
+                tw.WriteLine($" - {s}");
+            }
+
+            tw.Write(localWriter.ToString());
+        }
+
+        public void addStep(string StageName)
+        {
+            steps.Add(StageName);
+        }
+
+        public IJob andThen(jobFunc f)
+        {
+            var ctx = new JobContext(this, writer);
+            f(ctx);
+            return this;
+        }
+    }
+
+    class JobContext : IJobContext
+    {
+        TextWriter writer;
+        Job origin;
+
+        public JobContext(Job origin, TextWriter writer)
+        {
+            this.writer = writer;
+            this.origin = origin;
+        }
+
+        public void andThen(anyFunc func)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IJobContext step(string stepName, stageFunc func)
+        {
+            var ctx = new StepContext(origin, stepName , writer);
+            func(ctx);
+            return this;
+        }
+    }
+
+    class StepContext : IStepContext
+    {
+        TextWriter writer;
+        Job origin;
+
+        String StepName;
+
+        public StepContext(Job j, string stepName, TextWriter writer)
         {
             this.origin = j;
             this.writer = writer;
+            this.StepName = stepName;
+            origin.addStep(StepName);
         }
 
-        public IContext andThen(anyFunc func)
+        public IStepContext andThen(anyFunc func)
         {
             func();
             return this;
         }
 
-        public IContext stage(string stageName, stagefunc func)
+        public void task(string taskName, taskFunc func) 
         {
-            origin.addStage(stageName);
-            Stage s = new Stage(this.writer, stageName);
-            func(s);
-            return this;
+            TaskContext ctx = new TaskContext(this.writer, StepName, taskName);
+            func(ctx);
         }
     }
 
-    class Stage : IStageContext
+    class TaskContext : ITaskContext
     {
         TextWriter writer;
 
-        public Stage(TextWriter writer, string StageName)
+        public TaskContext(TextWriter writer, string StepName, string taskName)
         {
             this.writer = writer;
-            writer.WriteLine($"{StageName}-Job:");
-            writer.WriteLine($"  stage:{StageName}");
+            writer.WriteLine($"{taskName}-Job:");
+            writer.WriteLine($"  stage: {StepName}");
             writer.WriteLine($"  script:");
         }
 

@@ -1,26 +1,43 @@
 
-delegate void jobfunc(IContext param);
+enum TargetType
+{
+    Gitlab,
+    AzureDevOps,
+    Local
+}
+
+delegate void jobFunc(IJobContext param);
 delegate void anyFunc();
 
 interface IBuilder
 {
-    IJob job(string JobName, jobfunc func); 
+    IJob job(string JobName, jobFunc func); 
+
+    TargetType Target { get; }
 }
 
 interface IJob
 {
-    IJob andThen(jobfunc func);
+    IJob andThen(jobFunc func);
 }
 
-delegate void stagefunc(IStageContext contxt);
-
-interface IContext
+interface IJobContext
 {
-    IContext stage(string stageName, stagefunc func);
-    IContext andThen(anyFunc func);
+    IJobContext step(string stepName, stageFunc func);
+    void andThen(anyFunc func);
 }
 
-interface IStageContext
+delegate void stageFunc(IStepContext contxt);
+delegate void taskFunc(ITaskContext contxt);
+
+
+interface IStepContext
+{
+    void task(string taskName, taskFunc func);
+    IStepContext andThen(anyFunc func);
+}
+
+interface ITaskContext
 {
     void sh(string command);
 }

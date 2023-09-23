@@ -14,6 +14,26 @@ Enter CI Mage:
 statically typed language.
 * Target multiple CI runners, such as GitHub, GitLab, Azure DevOps and Local
 * Have multiple environments to target different instances of the same runner type
+* Execute the full build locally
+
+## Terminology
+Since most of our targets use similar but not quite the same terminology for their concepts an overarching set of terms is required to define the concepts used by ci-mage:
+
+* Job: A job is a top level entity used to group several build steps.
+* Step: A step is an entity that is used to group tasks that run in parallel
+* Task: A task is the smalles part of a build. It can be part of a step or run on its own.
+* Artifact: An artifact is a collection of build products, that can be consumed by other build tasks
+* Agent: An agent is an entity which can be used to offload work to
+
+Map of concepts to target systems:
+
+| Concept  | AzureDevops | Gitlab | Local |
+|----------|-|-|-|
+| Job      |-|-| "Batch"*|
+| Step     |-| Stage | "Thread"* |
+| Task     |-|-| "Batch"*|
+| Artifact  |Artifact | Artifact | "Zip"*|
+| Agent    |-|-| "Thread"*|
 
 
 ## Simple Idea
@@ -22,28 +42,30 @@ statically typed language.
     {
         b.job( context => {
 
-            context.stage("Stage Name", stage_context => {                
-                stage_context.sh("echo \"Hello World \" ")
-            }).andThen( () => 
-                context.stage("Second Stage", stage_context => {
-                stage_context.sh("echo \"I Am stage two \" ")
-            }).andThen(() =>
-                context.stage("Stage Name", stage_context => {
-                stage_context.sh("echo \"I Am stage three \" ")
+            context.step("First Step", step_context => {                
+                step_context.task( (task_context) => ctx.sh("echo \"Hello from Step 1\"");
+            });
+
+            context.step("Second Step", step_context => {
+                step_context.task( (task_context) => ctx.sh("echo \"Hello from Step 2\"");
+            });
+
+            context.step("Third Step", step_context => {
+                step_context.task( (task_context) => ctx.sh("echo \"Hello from Step 3\"");
             }));
         } );
 
     }
 ```
 
-The above would create a build with three sequential stages. The "andThen" directive makes sure the stages are executed sequentially.
+The above would create a build with three sequential steps, each containing a single task
 
 ```mermaid
 flowchart LR
 start
-start --> FirstStage
-FirstStage --> SecondStage
-SecondStage --> ThirdStage
+start --> FirstStep
+FirstStep --> SecondStep
+SecondStep --> ThirdStep
 ```
 
 Parallel stages

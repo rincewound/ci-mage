@@ -6,13 +6,17 @@ internal class Program
         {
             b.job("JobName", (ctx) =>
             {
-                ctx.stage("AStage", (stage_context) =>
+                // steps are executed in order
+                ctx.step("Stage1", (step_context) =>
                         {
-                            stage_context.sh("echo foo");
+                            // Tasks are executed paralelly
+                            step_context.task("ATask", (ctx) => ctx.sh("echo foo"));
+                            step_context.task("SecondTask", (ctx) => ctx.sh("echo foo"));
                         }
-                    ).stage("Stage2", (stage_context) =>
+                    );
+                ctx.step("Stage2", (step_context) =>
                         {
-                            stage_context.sh("echo foo");
+                            step_context.task("AnotherTask", (ctx) => ctx.sh("echo foo"));
                         }
                     );
             }
