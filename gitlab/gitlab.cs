@@ -1,3 +1,5 @@
+using System.Dynamic;
+
 namespace gitlab
 {
     class Builder : IBuilder
@@ -68,7 +70,7 @@ namespace gitlab
             throw new NotImplementedException();
         }
 
-        public IJobContext step(string stepName, stageFunc func)
+        public IJobContext step(string stepName, stepFunc func)
         {
             var ctx = new StepContext(origin, stepName , writer);
             func(ctx);
@@ -101,12 +103,15 @@ namespace gitlab
         {
             TaskContext ctx = new TaskContext(this.writer, StepName, taskName);
             func(ctx);
+            ctx.finalize();
         }
     }
 
     class TaskContext : ITaskContext
     {
         TextWriter writer;
+        List<IArtifact> consumedArtifacts = new List<IArtifact>();
+        Artifact? producedArtifact;
 
         public TaskContext(TextWriter writer, string StepName, string taskName)
         {
@@ -114,11 +119,83 @@ namespace gitlab
             writer.WriteLine($"{taskName}-Job:");
             writer.WriteLine($"  stage: {StepName}");
             writer.WriteLine($"  script:");
+            Name = $"{taskName}-Job";
+        }
+
+        public string Name {get; private set;}
+
+        public void consumeArtifact(IArtifact artifact)
+        {
+            if(artifact == null)
+            {
+                throw new Exception("The artifact passed to 'consumeArtifact' must not be null. Ensure, that the artifact is produced in an earlier step.");
+            }
+            consumedArtifacts.Add(artifact);
+        }
+
+        public IArtifact produceArtifact(string name, List<string> filters)
+        {
+            if(filters.Count == 0)
+            {
+                throw new Exception("An artifact must at least contain one entry!");
+            }
+
+            if(producedArtifact != null)
+            {
+                throw new Exception("An artifact can only be produced once per step!");
+            }
+
+            producedArtifact = new Artifact(this, name, filters);
+            return producedArtifact;
         }
 
         public void sh(string command)
         {
             writer.WriteLine($"     - {command}");
         }
+
+    
+        /**
+            Finalize will write the last lines of
+            the step, i.e. not the script!
+        */
+        internal void finalize()
+        {
+            if(consumedArtifacts.Any())
+            {
+                writer.Write("  needs: [");
+                foreach (var artifact in consumedArtifacts)
+                {
+                    writer.Write($"{artifact.producedBy.Name},");
+                }
+                writer.WriteLine("]");
+            }
+
+            if (producedArtifact != null)
+            {
+                writer.WriteLine("  artifacts:");
+                writer.WriteLine("      paths:");
+                foreach (var path in producedArtifact.Path)
+                {
+                    writer.WriteLine($"          - {path}");
+                }
+            }
+        }
+    }
+
+    class Artifact : IArtifact
+    {
+        public Artifact(ITaskContext producedBy, string name, List<string> paths)
+        {
+            Name = name;
+            Path = paths;
+            this.producedBy = producedBy;
+        }
+
+        public string Name {get; private set;}
+        public List<string> Path {get; private set;}
+
+        public ITaskContext producedBy{get; private set;}
+
     }
 }

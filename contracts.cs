@@ -23,11 +23,11 @@ interface IJob
 
 interface IJobContext
 {
-    IJobContext step(string stepName, stageFunc func);
+    IJobContext step(string stepName, stepFunc func);
     void andThen(anyFunc func);
 }
 
-delegate void stageFunc(IStepContext contxt);
+delegate void stepFunc(IStepContext contxt);
 delegate void taskFunc(ITaskContext contxt);
 
 
@@ -40,4 +40,14 @@ interface IStepContext
 interface ITaskContext
 {
     void sh(string command);
+    void consumeArtifact(IArtifact artifact);
+    IArtifact produceArtifact(string name, List<string> filters);
+
+    string Name{get;}
+}
+
+interface IArtifact
+{
+    ITaskContext producedBy{get;}
+    string Name { get; }
 }
