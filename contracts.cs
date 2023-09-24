@@ -33,8 +33,8 @@ delegate void taskFunc(ITaskContext contxt);
 
 interface IStepContext
 {
-    void task(string taskName, taskFunc func);
-    IStepContext andThen(anyFunc func);
+    IStepContext task(string taskName, taskFunc func);
+    IStepContext andThen(string taskName, taskFunc func);
 }
 
 interface ITaskContext
