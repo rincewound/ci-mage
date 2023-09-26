@@ -15,12 +15,12 @@ internal class Program
                         {
                             // Tasks are executed paralelly for most CI servers,
                             // but sequentially for local builds
-                            step_context.task("ATask", (ctx) => ctx.sh("echo Task1 done"));
+                            step_context.task("FirstTask", (ctx) => ctx.sh("echo Task1 done"));
                             step_context.task("SecondTask", (ctx) => 
                             {
                                 ctx.sh("echo SecondTask done");
                                 stage1Artifact = ctx.produceArtifact("P1", new List<string>(){"./out"});
-                            }).andThen("ThirdTask", (ctx) => 
+                            }).andThen("ThirdTaskAfterSecond", (ctx) => 
                                 {
                                     ctx.sh("echo Enter Task 3");
                                     // using the produced artifact in a step that
@@ -36,14 +36,17 @@ internal class Program
                                     // While this works, it does not ensure, that the artifact
                                     // is actually present during the execution of the
                                     // task. To have it present it must be "consumed" by the task.
-                                    ctx.sh($"echo Using Artifact produced by: {stage1Artifact.producedBy.Name}");   
+                                    ctx.sh($"echo Using Artifact produced by {stage1Artifact.producedBy.Name}");   
                                     ctx.sh("echo ThirdTask done");
                                     secondArtifact = ctx.produceArtifact("P2", new List<string>(){"./out"});
                                 
-                                }).andThen("LastTask", (ctx) =>
+                                }).andThen("FourthTaskAfterThird", (ctx) =>
                                 {
                                      ctx.sh("echo Enter Task 4");
                                      ctx.consumeArtifact(secondArtifact);
+                                }).andThen("FifthTaskAfterFourth", (ctx) =>
+                                {
+                                    ctx.sh("echo Ultimo!");
                                 });
                         }
                     );
@@ -57,8 +60,13 @@ internal class Program
         }
     private static void Main(string[] args)
     {
-        var b = new local.Builder();
+        var b = new gitlab.Builder();
+        
         build(b);
-        Console.Write(b.ToString());
+        File.WriteAllText("../gitlabtest/.gitlab.yml", b.ToString());
+
+        var azb = new azure.Builder();
+        build(azb);
+        File.WriteAllText("../azuretest/aztest/azure-pipelines-2.yml", azb.ToString());
     }
 }

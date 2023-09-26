@@ -32,7 +32,7 @@ namespace azure
             StringWriter localWriter = new StringWriter();
             var ctx = new JobContext(this, localWriter);
             f(ctx);
-            tw.WriteLine($"steps:");
+            tw.WriteLine($"stages:");
             tw.Write(localWriter.ToString());
         }
 
@@ -86,11 +86,15 @@ namespace azure
             this.writer = writer;
             this.StepName = stepName;
             origin.addStep(StepName);
+            writer.WriteLine($"- stage: {stepName}");
+            writer.WriteLine($"  jobs:");
+            //writer.WriteLine($"- job: {stepName}");
         }
 
         public IStepContext andThen(string taskName, taskFunc func)
         {
-            return new StepContext(origin, StepName, writer).task(taskName, func);
+            
+            return this.task(taskName, func);
         }
 
         public IStepContext task(string taskName, taskFunc func) 
@@ -111,7 +115,8 @@ namespace azure
         public TaskContext(TextWriter writer, string StepName, string taskName)
         {
             this.writer = writer;
-            writer.WriteLine($"- script: |");
+            writer.WriteLine($"  - job: {taskName}");
+            writer.WriteLine($"    steps:");
            
             Name = $"{taskName}";
         }
@@ -145,7 +150,7 @@ namespace azure
 
         public void sh(string command)
         {
-            writer.WriteLine($"    {command}");
+            writer.WriteLine($"      - bash: {command}");
         }
 
     
@@ -155,7 +160,7 @@ namespace azure
         */
         internal void finalize()
         { 
-            writer.WriteLine($"  displayName: {Name}");
+            writer.WriteLine($"    displayName: {Name}");
             // if(consumedArtifacts.Any())
             // {
             //     writer.Write("  needs: [");
