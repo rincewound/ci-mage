@@ -26,7 +26,7 @@ namespace local
 
         StringWriter writer = new StringWriter();
 
-        public TargetType Target => TargetType.Gitlab;
+        public TargetType Target => TargetType.Local;
 
         public IJob job(string JobName, jobFunc func)
         {
