@@ -1,4 +1,5 @@
 using System.Dynamic;
+using System.Security.Cryptography.X509Certificates;
 
 namespace gitlab
 {
@@ -85,6 +86,8 @@ namespace gitlab
 
         String StepName;
 
+        TaskContext? lastTask;
+
         public StepContext(Job j, string stepName, TextWriter writer)
         {
             this.origin = j;
@@ -95,7 +98,12 @@ namespace gitlab
 
         public IStepContext andThen(string taskName, taskFunc func)
         {
-            return new StepContext(origin, StepName, writer).task(taskName, func);
+            TaskContext ctx = new TaskContext(this.writer, StepName, taskName);
+            ctx.previousTask = lastTask;
+            func(ctx);
+            ctx.finalize();
+            lastTask = ctx;
+            return this; //new StepContext(origin, StepName, writer);
         }
 
         public IStepContext task(string taskName, taskFunc func) 
@@ -103,6 +111,7 @@ namespace gitlab
             TaskContext ctx = new TaskContext(this.writer, StepName, taskName);
             func(ctx);
             ctx.finalize();
+            lastTask = ctx;
             return this;
         }
     }
@@ -112,6 +121,8 @@ namespace gitlab
         TextWriter writer;
         List<IArtifact> consumedArtifacts = new List<IArtifact>();
         Artifact? producedArtifact;
+
+        public TaskContext? previousTask {get; set;}
 
         public TaskContext(TextWriter writer, string StepName, string taskName)
         {
@@ -161,7 +172,7 @@ namespace gitlab
         */
         internal void finalize()
         {
-            if(consumedArtifacts.Any())
+            if(consumedArtifacts.Any() || previousTask != null  )
             {
                 writer.Write("  needs: [");
                 var numWritten = 0;
@@ -169,11 +180,14 @@ namespace gitlab
                 {
                     writer.Write($"{artifact.producedBy.Name}");
                     numWritten++;
-                    if (numWritten != consumedArtifacts.Count)
-                    {
-                        writer.Write(",");
-                    }
+                    writer.Write(",");
+
                 }
+                if (previousTask != null && consumedArtifacts.All(x => x.producedBy.Name != previousTask.Name))
+                {
+                    writer.Write(previousTask.Name);
+                }
+
                 writer.WriteLine("]");
             }
 
